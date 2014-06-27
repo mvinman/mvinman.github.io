@@ -6,19 +6,31 @@
     <meta http-equiv="X-UA-Compatible" content="chrome=1" />
     <meta name="description" content="mvinman.github.io : " />
 
-    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+    <link rel="stylesheet" type="text/css" media="screen"
+    href="stylesheets/stylesheet.css">
 
-    <title>mvinman.github.io</title>
+    <title>Michael Inman</title>
   </head>
+
+  <script src="https://google-code-prettify.googlecode.com/svn
+	       /loader/run_prettify.js"></script>
+
+  <!-- NUMBER EVERY LINE -->
+  <style>
+    li.L0, li.L1, li.L2, li.L3,
+    li.L5, li.L6, li.L7, li.L8
+    { list-style-type: decimal !important }
+  </style>
 
   <body>
 
     <!-- HEADER -->
     <div id="header_wrap" class="outer">
         <header class="inner">
-          <a id="forkme_banner" href="https://github.com/mvinman">View on GitHub</a>
+          <a id="forkme_banner" href="https://github.com/mvinman">View
+          on GitHub</a>
 
-          <h1 id="project_title">mvinman.github.io</h1>
+          <h1 id="project_title">Michael Inman</h1>
           <h2 id="project_tagline"></h2>
 
         </header>
@@ -27,46 +39,1019 @@
     <!-- MAIN CONTENT -->
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
-        <h3>
-<a name="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages"><span class="octicon octicon-link"></span></a>Welcome to GitHub Pages.</h3>
+        <h3><a name="welcome-to-github-pages" class="anchor"
+        href="#welcome-to-github-pages"><span class="octicon
+        octicon-link"></span></a>Welcome to My GitHub Page.</h3>
 
-<p>This automatic page generator is the easiest way to create beautiful pages for all of your projects. Author your page content here using GitHub Flavored Markdown, select a template crafted by a designer, and publish. After your page is generated, you can check out the new branch:</p>
+	<p>On this page are samples of code I've written.</p>
 
-<pre><code>$ cd your_repo_root/repo_name
-$ git fetch origin
-$ git checkout gh-pages
-</code></pre>
+	<h3>Java</h3>
 
-<p>If you're using the GitHub for Mac, simply sync your repository and you'll see the new branch.</p>
+	<p>This is a Java program I wrote for a homework assignment.
+	Users can choose between drawing with a "brush" or using
+	shapes.  A brush is a string of one or more characters.
+	Shapes are drawn by selecting two or more points on the
+	canvas.</p>
 
-<h3>
-<a name="designer-templates" class="anchor" href="#designer-templates"><span class="octicon octicon-link"></span></a>Designer Templates</h3>
+	<p>The primary technical challenges of this assignment were
+	the use of Generics and the implementation of the Serializable
+	interface to provide functionality for saving and loading
+	drawings.</p>
 
-<p>We've crafted some handsome templates for you to use. Go ahead and continue to layouts to browse through them. You can easily go back to edit your page before publishing. After publishing your page, you can revisit the page generator and switch to another theme. Your Page content will be preserved if it remained markdown format.</p>
+	<pre><code class="prettyprint linenums"
+		   style="height:700px;overflow:scroll;overflow-y:scroll;
+			  overflow-x:hidden;">/*
+Author: Michael Inman
+Date: 05/06/13
+Program Name: DrawingBoard.java
+Objective: This program uses character strings and shapes to paint
+           on a virtual canvas
+*/
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import javax.swing.event.*;
+import java.util.*;
+import java.io.*;
 
-<h3>
-<a name="rather-drive-stick" class="anchor" href="#rather-drive-stick"><span class="octicon octicon-link"></span></a>Rather Drive Stick?</h3>
+//******************************CLASS MultiType*******************
+class MultiType&lt;T1,T2,T3&gt; implements Serializable
+{
+    private T1 ob1;
+    private T2 ob2;
+    private T3 ob3;
+    //******************************MultiType()*******************
+    public MultiType(T1 o1, T2 o2, T3 o3)
+    {
+        ob1 = o1;
+        ob2 = o2;
+        ob3 = o3;
+    }
+    //********************************getOb1()********************
+    T1 getOb1()
+    {
+	return ob1;
+    }
+    //********************************getOb2()********************
+    T2 getOb2()
+    {
+	return ob2;
+    }
+    //********************************getOb3()********************
+    T3 getOb3()
+    {
+	return ob3;
+    }
+}
 
-<p>If you prefer to not use the automatic generator, push a branch named <code>gh-pages</code> to your repository to create a page manually. In addition to supporting regular HTML content, GitHub Pages support Jekyll, a simple, blog aware static site generator written by our own Tom Preston-Werner. Jekyll makes it easy to create site-wide headers and footers without having to copy them across every page. It also offers intelligent blog support and other advanced templating features.</p>
+//******************************CLASS DataBox*********************
+class DataBox implements Serializable
+{
+    private ArrayList&lt;MultiType&gt; al;
+    //*******************************DataBox()********************
+    public DataBox(ArrayList&lt;MultiType&gt; aList)
+    {
+        al = aList;
+    }
+    //*******************************getData()********************
+    public ArrayList&lt;MultiType&gt; getData()
+    {
+        return(al);
+    }
+}
 
-<h3>
-<a name="authors-and-contributors" class="anchor" href="#authors-and-contributors"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
+//******************************CLASS DB**************************
+class DB extends JPanel
+{
+    private String brush = "*";
+    private String oldBrush;
+    private int mx = 0, my = 0;
+    private int xoffset = 0, yoffset = 5; // without offsets,
+                 // characters get drawn several pixels away
+                 // from the tip of the pointer
+    private Point mp = null;
+    private boolean b1 = false;
+    private boolean b3 = false;
+    private Color brushColor = Color.black;
+    private Color oldColor;
+    private Color eraseColor;
+    private Color fillColor = Color.black;
+    private String eraser ="\u2022"; // Unicode bullet: makes a
+                                     // good eraser
+    private Font eraseFont = new Font("SansSerif",
+			  Font.PLAIN,72); // make the eraser large
+    private Font defaultFont = null;
+    private Font f;
+    private boolean eraseMode;
+    private MultiType&lt;int[],String,Color&gt; mt; // a multi-type
+                                              // object to hold
+                                              // mouse coordinates,
+                                              // brush, and brush
+                                              // color; also used
+                                              // for shapes
+    private ArrayList&lt;MultiType&gt; al = new ArrayList&lt;&gt;();
+    private ArrayList&lt;Point&gt; ap = new ArrayList&lt;&gt;();
+    private boolean init = true;
+    private boolean drawLine;
+    private boolean drawRect;
+    private boolean drawOval;
+    private boolean drawPoly;
+    private boolean fill;
 
-<p>You can <a href="https://github.com/blog/821" class="user-mention">@mention</a> a GitHub username to generate a link to their profile. The resulting <code>&lt;a&gt;</code> element will link to the contributor's GitHub Profile. For example: In 2007, Chris Wanstrath (<a href="https://github.com/defunkt" class="user-mention">@defunkt</a>), PJ Hyett (<a href="https://github.com/pjhyett" class="user-mention">@pjhyett</a>), and Tom Preston-Werner (<a href="https://github.com/mojombo" class="user-mention">@mojombo</a>) founded GitHub.</p>
+    //**********************************DB()**********************
+    public DB()
+    {
+        setBrushColor(brushColor);
+        setBrush(brush);
+        setBackground(Color.white);
+        eraseColor = getBackground();
+        addMouseMotionListener(new MouseMotionAdapter()
+        {
+            public void mouseDragged(MouseEvent me)
+            {
+                mx = me.getX(); my = me.getY();
+                int coord[] = {mx-xoffset,my+yoffset};
+                mt = new MultiType&lt;&gt;(coord,brush,brushColor);
+                al.add(mt);
+                repaint();
+            }
+        });
+        addMouseListener(new MouseAdapter()
+        {
+            public void mouseClicked(MouseEvent me)
+            {
+                mp = me.getPoint();
+                if (me.getButton() == me.BUTTON1)
+                {
+                    b1 = true;
+                    b3 = false;
+                }
+                else if (me.getButton() == me.BUTTON3)
+                {
+                    b3 = true;
+                    b1 = false;
+                }
+                if (!eraseMode)
+                {
+                    xoffset=0;
+                    yoffset=5;
+                    if (b1 && (drawLine || drawRect || drawOval ||
+                               drawPoly)) ap.add(mp);
+                    if (ap.size() == 2)
+                    {
+                        int x1 = (int) ap.get(0).getX();
+                        int y1 = (int) ap.get(0).getY();
+                        int x2 = (int) ap.get(1).getX();
+                        int y2 = (int) ap.get(1).getY();
+                        int tmp[] = {x1,y1,x2,y2};
 
-<h3>
-<a name="support-or-contact" class="anchor" href="#support-or-contact"><span class="octicon octicon-link"></span></a>Support or Contact</h3>
+                        if (drawLine)
+                        {
+                            mt = new MultiType&lt;&gt;(tmp,"line",
+                                                 fillColor);
+                            al.add(mt);
+                            ap.clear();
+                        }
+                        else if (drawRect || drawOval)
+                        {
+                            if (drawRect)
+                            {
+                                if (fill) mt = new MultiType&lt;&gt;(tmp,
+                                                "rectf",fillColor);
+                                else mt = new MultiType&lt;&gt;(tmp,
+                                                 "rect",fillColor);
+                                al.add(mt);
+                                ap.clear();
+                            }
+                            else if (drawOval)
+                            {
+                                if (fill) mt = new MultiType&lt;&gt;(tmp,
+                                                "ovalf",fillColor);
+                                else mt = new MultiType&lt;&gt;(tmp,
+                                                 "oval",fillColor);
+                                al.add(mt);
+                                ap.clear();
+                            }
+                        }
+                    }
+                    else if (b3 && (ap.size() &gt; 2) && drawPoly)
+                    {
+                        int i = 0;
+                        int tmp[] = new int[ap.size()*2];
+                        for (Point p : ap)
+                        {
+                            tmp[i*2] = (int) ap.get(i).getX();
+                            tmp[(i*2)+1] = (int) ap.get(i).getY();
+                            i++;
+                        }
+                        if (fill) mt = new MultiType&lt;&gt;(tmp,"polyf",
+                                                       fillColor);
+                        else mt = new MultiType&lt;&gt;(tmp,"poly",
+                                                  fillColor);
+                        al.add(mt);
+                        ap.clear();
+                    }
+                }
+                repaint();
+            }
+        });
+    }
+    //*********************************cls()**********************
+    public void cls()
+    {
+        Graphics g = getGraphics();
+        g.setColor(getBackground());
+        g.fillRect(0,0,getWidth(),getHeight());
+        g.setColor(getForeground());
+        al = new ArrayList&lt;&gt;();
+    }
+    //****************************setBrushColor()*****************
+    public void setBrushColor(Color c)
+    {
+        brushColor = c;
+    }
+    //*******************************setBrush()*******************
+    public void setBrush(String brush)
+    {
+        this.brush = brush;
+    }
+    //******************************savePic()*********************
+    public void savePic()
+    {
+        File file;
+        DataBox dBox = new DataBox(al);
+        JFileChooser jfc = new JFileChooser();
+        jfc.setFileSelectionMode(JFileChooser.
+                                 FILES_AND_DIRECTORIES);
+        int returnValue = jfc.showDialog(this,"Save");
+        if (returnValue == JFileChooser.APPROVE_OPTION);
+        {
+            file = jfc.getSelectedFile();
+            if (file == null || file.getName().equals(""))
+            {
+                // user clicked "cancel" -- do nothing
+            }
+            else try
+            {
+                FileOutputStream fos = new FileOutputStream(file);
+                ObjectOutputStream oos = new
+                    ObjectOutputStream(fos);
+                oos.writeObject(dBox);
+                oos.flush();
+                oos.close();
+            } catch(IOException e){}
+        }
+    }
+    //******************************loadPic()*********************
+    public void loadPic()
+    {
+        DataBox dBoxLoaded;
+        File file;
+        JFileChooser jfc = new JFileChooser();
+        jfc.setFileSelectionMode(JFileChooser.
+                                 FILES_AND_DIRECTORIES);
+        int returnValue = jfc.showOpenDialog(this);
+        if (returnValue == JFileChooser.APPROVE_OPTION);
+        {
+            file = jfc.getSelectedFile();
+            if (file == null || file.getName().equals(""))
+            {
+                // user clicked "cancel" -- do nothing
+            }
+            try
+            {
+                FileInputStream fis = new FileInputStream(file);
+                ObjectInputStream ois = new ObjectInputStream(fis);
+                dBoxLoaded = (DataBox) ois.readObject();
+                ois.close();
+                al = dBoxLoaded.getData();
+                repaint();
+            } catch(Exception e){}
+        }
+    }
+    //*****************************setEraseMode()*****************
+    public void setEraseMode()
+    {
+        if (!eraseMode)
+        {
+            // remember the brush and its color so we can restore
+            // them when we go back to draw mode
+            oldBrush = brush;
+            oldColor = brushColor;
 
-<p>Having trouble with Pages? Check out the documentation at <a href="http://help.github.com/pages">http://help.github.com/pages</a> or contact <a href="mailto:support@github.com">support@github.com</a> and we’ll help you sort it out.</p>
+            eraseMode = true;
+            f = eraseFont;
+            setBrushColor(eraseColor);
+            setBrush(eraser);
+            xoffset=20;
+            yoffset=25;
+        }
+    }
+    //*****************************setDrawMode()******************
+    public void setDrawMode()
+    {
+        if (eraseMode)
+        {
+            eraseMode = false;
+            f = defaultFont;
+            setBrushColor(oldColor);
+            setBrush(oldBrush);
+            xoffset=0;
+            yoffset=5;
+        }
+    }
+    //*******************************drawLine()*******************
+    public void drawLine()
+    {
+        setDrawMode();
+        drawLine = true;
+        drawRect = drawOval = drawPoly = false;
+        ap.clear();
+    }
+    //*******************************drawRect()*******************
+    public void drawRect()
+    {
+        setDrawMode();
+        drawRect = true;
+        drawLine = drawOval = drawPoly = false;
+        ap.clear();
+    }
+    //*******************************drawOval()*******************
+    public void drawOval()
+    {
+        setDrawMode();
+        drawOval = true;
+        drawRect = drawLine = drawPoly = false;
+        ap.clear();
+    }
+    //*******************************drawPoly()*******************
+    public void drawPoly()
+    {
+        setDrawMode();
+        drawPoly = true;
+        drawRect = drawOval = drawLine = false;
+        ap.clear();
+    }
+    //*********************************fill()*********************
+    public void fill(boolean fill)
+    {
+        this.fill = fill;
+    }
+    //*****************************setFillColor()*****************
+    public void setFillColor(Color c)
+    {
+        fillColor = c;
+    }
+    //****************************paintComponent()****************
+    public void paintComponent(Graphics g)
+    {
+        super.paintComponent(g);
+        g.setFont(f);
+        g.setColor(brushColor);
+        if (init)
+        {
+            init = false; // prevent accidental drawing when
+                          // object is initialized
+            defaultFont = g.getFont(); // query and set the
+                                      // default font
+        }
+        else if(al.size() &gt; 0)
+        {
+            int mxSaved, mySaved;
+            String brushSaved;
+            Color brushColorSaved;
+            for (int i=0; i &lt; al.size(); i++)
+            {
+                if (((int[]) al.get(i).getOb1()).length &gt; 2)
+                {
+                    int tmp[] = (int[]) al.get(i).getOb1();
+                    String stmp = (String) al.get(i).getOb2();
+                    int stmplen = stmp.length(); // length of
+                           // string is a proxy for fill type
+                    stmp = stmp.substring(0,4); // first four
+                                     // letters specify shape
+                    Color ctmp = (Color) al.get(i).getOb3();
+                    g.setColor(ctmp);
+                    if (stmp.equals("line")) g.drawLine(tmp[0],
+                                            tmp[1],tmp[2],tmp[3]);
+                    else if (stmp.equals("rect"))
+                    {
+                        if (stmplen == 5) g.fillRect(tmp[0],tmp[1],
+                                      tmp[2]-tmp[0],tmp[3]-tmp[1]);
+                        else g.drawRect(tmp[0],tmp[1],
+                                     tmp[2]-tmp[0],tmp[3]-tmp[1]);
+                    }
+                    else if (stmp.equals("oval"))
+                    {
+                        if (stmplen == 5) g.fillOval(tmp[0],tmp[1],
+                                      tmp[2]-tmp[0],tmp[3]-tmp[1]);
+                        else g.drawOval(tmp[0],tmp[1],
+                                     tmp[2]-tmp[0],tmp[3]-tmp[1]);
+                    }
+                    else if (stmp.equals("poly"))
+                    {
+                        int x[] = new int[tmp.length/2];
+                        int y[] = new int[tmp.length/2];
+                        for (int j = 0; j &lt; tmp.length/2; j++)
+                        {
+                            x[j] = tmp[j*2];
+                            y[j] = tmp[(j*2)+1];
+                        }
+                        if (stmplen == 5) g.fillPolygon(x,y,
+                                                        x.length);
+                        else g.drawPolygon(x,y,x.length);
+                    }
+                }
+                else
+                {
+                    mxSaved = (int) ((int[]) al.get(i).getOb1())[0];
+                    mySaved = (int) ((int[]) al.get(i).getOb1())[1];
+                    brushSaved = (String) al.get(i).getOb2();
+                    if (brushSaved.equals(eraser))
+                        g.setFont(eraseFont);
+                    else g.setFont(defaultFont);
+                    brushColorSaved = (Color) al.get(i).getOb3();
+                    g.setColor(brushColorSaved);
+                    g.drawString(brushSaved,mxSaved,mySaved);
+                }
+            }
+        }
+    }
+}
 
-<p>Hello Wordl!</p>
+//******************************CLASS HW4b************************
+class DrawingBoard extends JFrame implements ActionListener
+{
+    private String brush = "*";
+    private DB dBoard = new DB();
+    private ImageIcon on = new ImageIcon("on.gif");
+    private ImageIcon off = new ImageIcon("off.gif");
+    private ImageIcon title = new ImageIcon("db.gif");
+    private ImageIcon line_on = new ImageIcon("line.on.gif");
+    private ImageIcon rect_on = new ImageIcon("rect.on.gif");
+    private ImageIcon oval_on = new ImageIcon("oval.on.gif");
+    private ImageIcon poly_on = new ImageIcon("poly.on.gif");
+    private ImageIcon line_off = new ImageIcon("line.off.gif");
+    private ImageIcon rect_off = new ImageIcon("rect.off.gif");
+    private ImageIcon oval_off = new ImageIcon("oval.off.gif");
+    private ImageIcon poly_off = new ImageIcon("poly.off.gif");
+    private JButton jbS;
+    private JButton jbL;
+    private JButton jbC;
+    private JButton jbD;
+    private JButton jbR;
+    private JButton jbB;
+    private JButton jbE;
+    private JPanel labelColorPanel;
+    private JLabel currentBrush;
+    private JLabel currentBrushLabel;
+    private JLabel currentColorLabel;
+    private Color ttColor = new Color(255,255,180);
+    private Color chosenColor = Color.black;
+    private boolean eraseMode = false;
+    private JButton jbLine;
+    private JButton jbRect;
+    private JButton jbOval;
+    private JButton jbPoly;
+    private JButton jbFill;
+    private String fillState;
+
+    //*****************************DrawingBoard()*****************
+    public DrawingBoard()
+    {
+        setTitle("Drawing Board");
+        setSize(800,700);
+        this.setResizable(false);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        buildPanel();
+        setVisible(true);
+    }
+    //******************************buildPanel()******************
+    private void buildPanel()
+    {
+        setLayout(new BorderLayout());
+        JPanel buttonPanel = new JPanel();
+        jbS = new JButton("SAVE")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbL = new JButton("LOAD")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbC = new JButton("CLEAR")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbD = new JButton("DRAW")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbE = new JButton("ERASE")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbR = new JButton("COLOR")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbB = new JButton("BRUSH")
+            {
+                public JToolTip createToolTip()
+                {
+                    JToolTip jtt = super.createToolTip();
+                    jtt.setBackground(ttColor);
+                    return jtt;
+                }
+            };
+        jbD.setIcon(on);
+        jbE.setIcon(off);
+        buttonPanel.add(jbS);
+        buttonPanel.add(jbL);
+        buttonPanel.add(jbC);
+        buttonPanel.add(jbD);
+        buttonPanel.add(jbE);
+        buttonPanel.add(jbR);
+        buttonPanel.add(jbB);
+
+        jbS.setToolTipText("save the drawing");
+        jbL.setToolTipText("open a previously saved drawing");
+        jbC.setToolTipText("clear the screen");
+        jbD.setToolTipText("switch to draw mode to draw on the " +
+                           "screen");
+        jbE.setToolTipText("switch to erase mode");
+        jbR.setToolTipText("change the brush color");
+        jbB.setToolTipText("change the brush");
+
+        currentColorLabel = new JLabel("CURRENT COLOR");
+        currentColorLabel.setFont(new Font("SansSerif",
+                                           Font.PLAIN,10));
+        JPanel labelParentPanel = new JPanel();
+        labelColorPanel = new JPanel();
+        labelColorPanel.setBackground(Color.black);
+        labelParentPanel.add(currentColorLabel);
+        labelParentPanel.add(labelColorPanel);
+
+        currentBrushLabel = new JLabel("CURRENT BRUSH  ");
+        currentBrushLabel.setFont(new Font("SansSerif",
+                                           Font.PLAIN,10));
+        currentBrush = new JLabel(brush);
+        currentBrush.setFont(new Font("SansSerif",
+                                      Font.BOLD,10));
+        JPanel brushLabelPanel = new JPanel();
+        brushLabelPanel.add(currentBrushLabel);
+        brushLabelPanel.add(currentBrush);
+
+        JPanel statusPanel = new JPanel();
+        statusPanel.setLayout(new GridLayout(2,1,0,-6));
+        statusPanel.add(labelParentPanel);
+        statusPanel.add(brushLabelPanel);
+
+        JPanel bottomPanel = new JPanel();
+        bottomPanel.setLayout(new GridLayout(2,2));
+        bottomPanel.add(buttonPanel);
+        bottomPanel.add(statusPanel);
+        add(bottomPanel,BorderLayout.SOUTH);
+
+        JPanel jp = new JPanel();
+        dBoard.setPreferredSize(new Dimension(723,650));
+        jp.add(dBoard);
+        add(jp,BorderLayout.CENTER);
+        JLabel lTitle = new JLabel(title,JLabel.CENTER);
+        add(lTitle,BorderLayout.NORTH);
+
+        JPanel shapePanel = new JPanel();
+        shapePanel.setLayout(new GridLayout(16,1,0,5));
+        shapePanel.setPreferredSize(new Dimension(65,170));
+        jbLine = new JButton()
+        {
+            public JToolTip createToolTip()
+            {
+                JToolTip jtt = super.createToolTip();
+                jtt.setBackground(ttColor);
+                return jtt;
+            }
+        };
+        jbRect = new JButton()
+        {
+            public JToolTip createToolTip()
+            {
+                JToolTip jtt = super.createToolTip();
+                jtt.setBackground(ttColor);
+                return jtt;
+            }
+        };
+        jbOval = new JButton()
+        {
+            public JToolTip createToolTip()
+            {
+                JToolTip jtt = super.createToolTip();
+                jtt.setBackground(ttColor);
+                return jtt;
+            }
+        };
+        jbPoly = new JButton()
+        {
+            public JToolTip createToolTip()
+            {
+                JToolTip jtt = super.createToolTip();
+                jtt.setBackground(ttColor);
+                return jtt;
+            }
+        };
+        jbFill = new JButton("fill")
+        {
+            public JToolTip createToolTip()
+            {
+                JToolTip jtt = super.createToolTip();
+                jtt.setBackground(ttColor);
+                return jtt;
+            }
+        };
+        JButton jbHelp = new JButton("help");
+        jbLine.setActionCommand("line");
+        jbRect.setActionCommand("rectangle");
+        jbOval.setActionCommand("oval");
+        jbPoly.setActionCommand("polygon");
+        jbLine.setToolTipText("draw lines");
+        jbRect.setToolTipText("draw rectangles");
+        jbOval.setToolTipText("draw ovals");
+        jbPoly.setToolTipText("draw polygons");
+        jbFill.setToolTipText("fill shapes with a selected color");
+        jbLine.setIcon(line_off);
+        jbRect.setIcon(rect_off);
+        jbOval.setIcon(oval_off);
+        jbPoly.setIcon(poly_off);
+        jbFill.setIcon(off);
+        shapePanel.add(new JLabel("SHAPES",JLabel.CENTER));
+        shapePanel.add(jbLine);
+        shapePanel.add(jbRect);
+        shapePanel.add(jbOval);
+        shapePanel.add(jbPoly);
+        shapePanel.add(new JLabel(""));
+        shapePanel.add(new JLabel("FILL",JLabel.CENTER));
+        shapePanel.add(jbFill);
+        shapePanel.add(new JLabel(""));
+        shapePanel.add(jbHelp);
+        add(shapePanel,BorderLayout.WEST);
+
+        jbS.addActionListener(this);
+        jbL.addActionListener(this);
+        jbC.addActionListener(this);
+        jbD.addActionListener(this);
+        jbE.addActionListener(this);
+        jbR.addActionListener(this);
+        jbB.addActionListener(this);
+
+        jbLine.addActionListener(this);
+        jbRect.addActionListener(this);
+        jbOval.addActionListener(this);
+        jbPoly.addActionListener(this);
+        jbFill.addActionListener(this);
+        jbHelp.addActionListener(this);
+    }
+    //***************************actionPerformed()****************
+    public void actionPerformed(ActionEvent ae)
+    {
+        switch(ae.getActionCommand())
+        {
+        case "SAVE": saveDrawing(); break;
+        case "LOAD": loadDrawing(); break;
+        case "CLEAR": dBoard.cls(); break;
+        case "DRAW": draw(); break;
+        case "ERASE": erase(); break;
+        case "COLOR": chooseColor(); break;
+        case "BRUSH": getBrush(); break;
+        case "line": drawLine(); break;
+        case "rectangle": drawRect(); break;
+        case "oval": drawOval(); break;
+        case "polygon": drawPoly(); break;
+        case "fill": fill(); break;
+        case "help": help(); break;
+        }
+    }
+    //*******************************drawLine()*******************
+    public void drawLine()
+    {
+        eraseMode = false;
+        drawStatus();
+        jbLine.setIcon(line_on);
+        jbRect.setIcon(rect_off);
+        jbOval.setIcon(oval_off);
+        jbPoly.setIcon(poly_off);
+        dBoard.drawLine();
+    }
+    //*******************************drawRect()*******************
+    public void drawRect()
+    {
+        eraseMode = false;
+        drawStatus();
+        jbLine.setIcon(line_off);
+        jbRect.setIcon(rect_on);
+        jbOval.setIcon(oval_off);
+        jbPoly.setIcon(poly_off);
+        dBoard.drawRect();
+    }
+    //*******************************drawOval()*******************
+    public void drawOval()
+    {
+        eraseMode = false;
+        jbD.setIcon(on);
+        jbE.setIcon(off);
+        drawStatus();
+        jbLine.setIcon(line_off);
+        jbRect.setIcon(rect_off);
+        jbOval.setIcon(oval_on);
+        jbPoly.setIcon(poly_off);
+        dBoard.drawOval();
+    }
+    //*******************************drawPoly()*******************
+    public void drawPoly()
+    {
+        eraseMode = false;
+        drawStatus();
+        jbLine.setIcon(line_off);
+        jbRect.setIcon(rect_off);
+        jbOval.setIcon(oval_off);
+        jbPoly.setIcon(poly_on);
+        dBoard.drawPoly();
+    }
+    //*********************************fill()*********************
+    public void fill()
+    {
+        fillState = "" + jbFill.getIcon();
+        if (fillState.equals("on.gif"))
+        {
+            jbFill.setIcon(off);
+            dBoard.fill(false);
+        }
+        else
+        {
+            jbFill.setIcon(on);
+            dBoard.fill(true);
+        }
+    }
+    //*********************************help()*********************
+    public void help()
+    {
+        String helpString = "&lt;html&gt;&lt;body width='350'&gt;&lt;h1&gt;" +
+            "&lt;center&gt;Drawing Shapes&lt;/h1&gt;" +
+            "To draw a line, click the line " +
+            "button, then click where you would" +
+            " like the start and end points to " +
+            "be.&lt;br&gt;&lt;br&gt; To draw a rectangle, " +
+            "click the rectangle button, then " +
+            "click where you would like the " +
+            "upper left and lower right corners" +
+            " to be.&lt;br&gt;&lt;br&gt; To draw an oval, " +
+            "click the oval button.  Imagine a" +
+            " box around the oval, and click " +
+            "where you would like the upper " +
+            "left and lower right corners of " +
+            "the box to be.&lt;br&gt;&lt;br&gt; To draw a " +
+            "polygon, click the polygon button," +
+            " then click where you would like " +
+            "the corners to be.  When you are " +
+            "ready to draw the shape, click " +
+            "the right mouse button.";
+        JOptionPane.showMessageDialog(this,helpString,"",
+                                 JOptionPane.INFORMATION_MESSAGE);
+    }
+    //******************************drawStatus()******************
+    public void drawStatus()
+    {
+        // update status icons on buttons
+        jbD.setIcon(on);
+        jbE.setIcon(off);
+
+        // update status labels when drawing with brush or shapes
+        currentColorLabel.setForeground(Color.black);
+        labelColorPanel.setBackground(chosenColor);
+        currentBrush.setForeground(Color.black);
+        currentBrushLabel.setForeground(Color.black);
+    }
+    //*********************************draw()*********************
+    public void draw()
+    {
+        eraseMode = false;
+
+        // update status labels and icons
+        drawStatus();
+
+        // prepare Canvas for drawing
+        dBoard.setDrawMode();
+    }
+    //********************************erase()*********************
+    public void erase()
+    {
+        eraseMode = true;
+
+        // update status icons on buttons
+        jbE.setIcon(on);
+        jbD.setIcon(off);
+        jbLine.setIcon(line_off);
+        jbRect.setIcon(rect_off);
+        jbOval.setIcon(oval_off);
+        jbPoly.setIcon(poly_off);
+
+        // gray out the status labels while erasing
+        currentColorLabel.setForeground(Color.gray);
+        labelColorPanel.setBackground(Color.gray);
+        currentBrush.setForeground(Color.gray);
+        currentBrushLabel.setForeground(Color.gray);
+
+        // set erase mode
+        dBoard.setEraseMode();
+    }
+    //*******************************getBrush()*******************
+    public void getBrush()
+    {
+        if (eraseMode)
+        {
+            JOptionPane.showMessageDialog(null,
+                           "cannot change brush in erase mode","",
+                           JOptionPane.ERROR_MESSAGE);
+        }
+        else
+        {
+            String s = (String) JOptionPane.showInputDialog(null,
+                "enter one or more characters to make your brush",
+                "",JOptionPane.PLAIN_MESSAGE);
+            if ((s != null) && (s.length() &gt; 0))
+            {
+                brush = s;
+                dBoard.setBrush(brush);
+                currentBrush.setText(brush);
+            }
+        }
+    }
+    //*****************************chooseColor()******************
+    public void chooseColor()
+    {
+        if (eraseMode)
+        {
+            JOptionPane.showMessageDialog(null,
+                           "cannot change color in erase mode","",
+                                       JOptionPane.ERROR_MESSAGE);
+        }
+        else
+        {
+	    Color previousColor = chosenColor;
+            chosenColor = JColorChooser.showDialog(null,
+                                    "Color Chooser",Color.yellow);
+            if (chosenColor == null) chosenColor = previousColor;
+            labelColorPanel.setBackground(chosenColor);
+            dBoard.setBrushColor(chosenColor);
+            dBoard.setFillColor(chosenColor);
+        }
+    }
+    //*****************************saveDrawing()******************
+    public void saveDrawing()
+    {
+        dBoard.savePic();
+    }
+    //*****************************loadDrawing()******************
+    public void loadDrawing()
+    {
+        dBoard.loadPic();
+    }
+    //*********************************main()*********************
+    public static void main(String args[])
+    {
+        SwingUtilities.invokeLater(new Runnable()
+        {
+            public void run()
+            {
+                new DrawingBoard();
+            }
+        });
+    }
+}</code></pre>
+
+	<p/><p>Here's a screenshot:</p>
+
+	<img src="images/DrawingBoard.png" width="650px" alt="Drawing Board
+						screenshot">
+	<hr>
+	<p/><p>This next program was an extra credit assignment to
+	sort a list of IPv4 addresses.  It implements Comparator&lt;T&gt; to
+	accomplish this.</p>
+
+	<pre><code class="prettyprint linenums"
+		   style="height:700px;overflow:scroll;overflow-y:scroll;
+			  overflow-x:hidden;">/*
+Author: Michael Inman
+Date  : 05/06/13
+Program Name: IPSort.java
+Objective: This program sorts IPv4 addresses by implementing
+           Comparator&lt;T&gt;.
+*/
+
+import java.util.*;
+
+class SortIPAddr implements Comparator&lt;String&gt;
+{
+    private String s1Octet[];
+    private String s2Octet[];
+    private int s1int;
+    private int s2int;
+    //*******************************compare()********************
+    public int compare(String s1, String s2)
+    {
+        s1Octet = s1.split("\\.");
+        s2Octet = s2.split("\\.");
+        for (int i=0; i<4; i++)
+        {
+            s1int = Integer.parseInt(s1Octet[i]);
+            s2int = Integer.parseInt(s2Octet[i]);
+            if (s1int < s2int) return(-1);
+            if (s1int > s2int) return(1);
+        }
+        return(0);
+    }
+}
+
+public class IPSort
+{
+    static final int MAX=10000;
+    //********************************IPSort()********************
+    public IPSort()
+    {
+        TreeSet&lt;String&gt; ts = new TreeSet<>(new SortIPAddr());
+        while (ts.size() != MAX) ts.add(genIP());
+        int i = 0;
+        for (String s : ts)
+        {
+            if ((i < 10) || (i > MAX-11))
+            {
+                System.out.println(s);
+            }
+            if (i == 10) System.out.println("....");
+            i++;
+        }
+    }
+    //*********************************rand()*********************
+    public int rand(int a, int b)
+    {
+        return((int)((b-a+1)*Math.random()+a));
+    }
+    //********************************genIP()*********************
+    public String genIP() // generate IP addresses
+    {
+        String ipaddr = "";
+        ipaddr = rand(0,255) + "." + rand(0,255) + "." +
+            rand(0,255) + "." + rand(0,255);
+        return(ipaddr);
+    }
+    //*********************************main()*********************
+    public static void main(String args[])
+    {
+        new IPSort();
+    }
+}</code></pre>
+
+	<p/><p>Here's a sample of the output:</p>
+
+	<img src="images/IPSort.output.png" alt="IP Sort screenshot">
+
       </section>
     </div>
 
     <!-- FOOTER  -->
     <div id="footer_wrap" class="outer">
       <footer class="inner">
-        <p>Published with <a href="http://pages.github.com">GitHub Pages</a></p>
+        <p>Published with <a href="http://pages.github.com">GitHub
+        Pages</a></p>
       </footer>
     </div>
 
