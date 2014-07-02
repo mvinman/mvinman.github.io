@@ -1044,6 +1044,531 @@ public class IPSort
 
 	<img src="images/IPSort.output.png" alt="IP Sort screenshot">
 
+	<h3>Perl</h3>
+
+	<p>I like to use Perl for small projects.  It allows me to
+	develop quickly without having to worry about features typical
+	of lower-level compiled languages.</p>
+
+	<p>Here is a script I wrote to produce Excel reports and data
+	plots from immunological assays.  It parses data from an ASCII
+	text file to create one or more files.  If a data plot is
+	requested, a file containing gnuplot commands is written,
+	then gnuplot is called on the resulting file.</p>
+
+	<pre><code class="prettyprint linenums"
+		   style="height:700px;overflow:scroll;overflow-y:scroll;
+			  overflow-x:hidden;">#!/usr/bin/perl
+
+# This script calculates the means, standard deviations, and %CVs
+# given a file containing concentration values from a Luminex run.
+# The input file must be in the cross-tab custom format.
+
+# A previous version required that replicates be in consecutive wells,
+# but that requirement was dropped in this verion.
+
+# The script optionally produces tab-delimited output on stdout and
+# a plot file (.plt) with a filename based on the name of the input
+# file.
+
+# There are some optional command line switches:
+
+# -p: plot the data by calling gnuplot on the plot file.  Produces a
+#     PostScript (.ps) file with a name based on the name of the input
+#     file.
+
+# -t: send the output to a tab-delimited text file instead of stdout.
+#     Produces a .txt file with a name based on the name of the input
+#     file.
+
+# -x: send the output to an Excel file instead of stdout.  Produces a
+#     .xls file with a name based on the name of the input file.
+
+# -l: send the output to a tab-delimited text file instead of stdout.
+#     Produces a text file with a name based on the name of the input
+#     file having the extension .xls
+
+# Command line options FOLLOW the name of the input file.  Switches
+# can be in any order.  Dashes are optional.  Space between switches
+# is optional.
+
+# author: Michael Inman
+
+use Net::Domain qw(hostname hostfqdn hostdomain);
+use Spreadsheet::ParseExcel::Simple;
+use Spreadsheet::WriteExcel;
+use Statistics::Descriptive;
+use PerlIO::eol;
+use File::Copy;
+
+my $host = hostname();
+my $os = $^O;
+
+$thisscript=$0;
+$thisscript=~s/.*[\/\\]//; # remove path, if any
+
+$file=shift @ARGV || die "The command line must include the name of a
+                          file to process\n";
+@switches=@ARGV;
+$switches="@switches";
+$switches=~s/[- ]//g;
+if ($switches=~/t/) { $maketxt=1; } else { $maketxt=0; }
+if ($switches=~/x/) { $makexls=1; } else { $makexls=0; }
+if ($switches=~/p/) { $makeps=1; } else { $makeps=0; }
+if ($switches=~/l/) { $maketxtxls=1; } else { $maketxtxls=0; }
+$basename=$file;
+$basename=~s/.xtab.csv//;
+$xlsfile=$basename . " data.xls";
+$assaydate=$basename;
+$assaydate=~/[0-9\.]+/;
+$assaydate=$&;
+$plotfile=$basename . ".plt";
+$psfile=$basename . ".plot.ps";
+$txtfile=$basename . ".txt";
+$txtxlsfile=$basename . ".xls";
+
+if ($maketxt) {
+  open (OUT,">$txtfile");
+  select OUT;
+} elsif ($maketxtxls) {
+  open (OUT,">$txtxlsfile");
+  select OUT;
+} else {
+  select (undef); # suppress output to terminal by default
+}
+
+
+################################################
+# SET OPTIONS FOR DATA DISPLAY (script internal)
+#
+# INDICATE WELLS WITH BEAD COUNTS < 100
+$showcountplot=1; # wells with low bead counts will be displayed in a
+		  # lighter hue; this requires adding an extra column
+		  # to the txt file; to add an extra column to the
+		  # Excel file, set the variable "$showcountxl" to 1.
+
+$showcountlbl=1; # include actual numbers of beads collected
+
+$showcountxl=1; # add extra column to Excel file for bead counts
+
+# SET THE DILUTION FACTOR
+$dilfactor=1; # undiluted samples have a dilution factor of 1
+$dilcol = $dilfactor > 1; # add an extra column if the dilution factor
+			  # is > 1
+
+# ADD BLANK COLUMN BETWEEN ANALYTES
+$blankcol=1;
+
+# NUMBER OF COLUMNS THE DATA FOR A GIVEN ANALYTE WILL OCCUPY
+$numcols=4 + $showcountxl + $dilcol + $blankcol;
+##############################################################
+
+###############################
+# GET THE CONTROL VALUES
+#
+$controlfile="control ranges.txt";
+open CF, "<:raw:eol(LF)", $controlfile;
+@controls=<CF>;
+foreach $line (@controls) {
+    chomp $line;
+    @fields=split /\t/,$line;
+    $ctlist{$fields[0]}=$fields[1];
+}
+##############################################################
+
+##############################################################
+# GET THE FILE CONTAINING THE BEAD COUNTS AND MFIs
+$detfile=$basename;
+$detfile=$detfile . ".det.csv";
+open DF, "<:raw:eol(LF)", $detfile;
+while (<DF>) {
+  s/\+/\\+/;
+  push @detfile,$_;
+}
+##############################################################
+
+##########################################
+# SET UP NEW EXCEL WORKBOOK (if selected)
+if ($makexls) {
+  # Create a new Excel workbook
+    $wkbk = Spreadsheet::WriteExcel->new("$xlsfile");
+    $wksht = $wkbk->add_worksheet("test");
+  # define some formats
+    $oneplace = $wkbk->add_format();
+    $oneplace->set_num_format('0.0');
+    $header_format = $wkbk->add_format(bold => 1,align => center);
+    $literal_format = $wkbk->add_format(num_format => '@');
+}
+##############################################################
+
+###############################
+# READ THE INPUT XTAB FILE
+open IN, "<:raw:eol(LF)", $file;
+@file = <IN>;
+##############################################################
+
+###############################
+# PREPARE THE HEADER ( = FIRST ROW OF FILE)
+$header = shift @file;
+chomp $header;
+@header = split /,/,$header;
+@analytes=@header[5..$#header];
+print "\"PID\"\t";
+@analytes_quoted = map { "\"$_" } @analytes; # put quotation marks
+				# around the analytes
+
+# EXPAND THE HEADER WITH ADDITIONAL COLUMNS AS REQUIRED
+if ($dilcol) { $dilcolheader = "\t\"corrected mean\""; }
+if ($showcountxl) { $countheader = "\t\"bead counts\""; }
+if ($blankcol) { $blankheader = "\t\"\""; }
+$extracols = " mean (pg/mL)\"\t\"sd\"\t\"cv\"\t\"\"" . $dilcolheader
+    . $countheader . $blankheader . "\t";
+$expanded_header = join $extracols, @analytes_quoted;
+$expanded_header = $expanded_header . " mean (pg/mL)\"\t\"sd\"\t\"cv\""
+                   . "\t" . $dilcolheader . $countheader . $blankheader
+                   . "\t";
+$expanded_header =~ s/TNF-RI(I*) mean \(pg\/mL\)/TNF-RI\1 mean
+                     (ng\/mL)/g; # TNF-RI and TNF-RII use ng/mL
+print $expanded_header,"\n";
+# for Excel:
+$expanded_header =~ s/\"//g; # remove quotes
+$expanded_header = "PID\t" . $expanded_header;
+@expanded_header = split /\t/,$expanded_header; # turn it into an array
+if ($makexls) { $wksht->write($row++,0,\@expanded_header,$header_format) };
+
+# GET THE PIDs
+@ids = map {@tmp=split /,/,$_; $tmp[4]} @file;
+undef @pids;
+foreach $id (@ids) {		# process the IDs
+  $id=~s/^ //;		# remove initial space char
+  push @pids,$id unless $seen{$id}++; # remove duplicates
+}
+
+# PROCESS EACH PID
+foreach $id (@pids) {
+  $j=0;
+  foreach $analyte (@analytes_quoted) { # initialize stats
+    $stat{$analytes[$j++]} = Statistics::Descriptive::Full->new();
+  }
+  print "\"$id\"\t";
+  if ($makexls) { $wksht->write($row,$col++,$id) };
+  $id=~s/\(/\\(/; # escape parentheses
+  $id=~s/\)/\\)/; # escape parentheses
+  $id=~s/\+/\\+/g; # escape plus sign
+  $id=~s/\*/\\*/g; # escape plus sign
+  @repgroup = grep /,$id,/, @file; # get all the replicates
+  foreach $rep (@repgroup) {
+    chomp $rep;
+    @rep = split /,/,$rep;
+    for ($i=5; $i<=$#rep; $i++) {
+      $stat{$analytes[$i-5]}->add_data($rep[$i]);
+      $wellid=$rep[2];
+      $analyte=$analytes[$i-5];
+      $analyte=~s/([()])/\\$1/g;
+      @detline = grep /$wellid,$analyte/,@detfile;
+      $detline = $detline[0];
+      chomp $detline;
+      @detline = split /,/,$detline;
+      push @{$beadcount{$analytes[$i-5]}},$detline[10];
+    }
+  }
+  foreach $analyte (@analytes) { # CALCULATE THE STATS
+      @values = $stat{$analyte}->get_data();
+      @oor = grep /OOR/,@values;
+      if ($#oor == $#values) { # if all values are "OOR"
+	  $mean = $values[0];
+	  $sd = "\"\"";
+      } else {
+	  @values = grep !/OOR/,@values; # grab only the numerical
+                                         # values (not OORs)
+          # re-initialize the data
+	  $stat{$analyte} = Statistics::Descriptive::Full->new();
+	  $stat{$analyte}->add_data(@values);
+	  $mean = $stat{$analyte}->mean();
+	  $correctedmean = sprintf "%02.1f",$mean*$dilfactor;
+	  if ($#values == 0) { # if you have only 1 value, do not
+			       # calculate the SD or the CV
+	      $sd = "\"\"";
+	  }
+	  else {
+	    $sd = $stat{$analyte}->standard_deviation();
+	  }
+      }
+    if ($id=~/QC/) { # CHECK THE QC RANGES
+      @ranges=split / /, $ctlist{$analyte};
+      $lowrange=$ranges[0];
+      $highrange=$ranges[1];
+      @lowrange=split /-/,$lowrange;
+      @highrange=split /-/,$highrange;
+      if ($id=~/low/) {
+	if ($mean >= ($lowrange[0]/4) && $mean <= ($lowrange[1]/4)) {
+	  $qc="\"QC low OK\"";
+	} elsif ($mean < ($lowrange[0]/4)) {
+	  $qc="\"QC low <OOR\"";
+	} else {
+	  $qc="\"QC low >OOR\"";
+	}
+      } elsif ($id=~/-1/) {
+	if ($mean >= $lowrange[0] && $mean <= $lowrange[1]) {
+	  $qc="\"QC-1 OK\"";
+	} elsif ($mean < $lowrange[0]) {
+	  $qc="\"QC-1 <OOR\"";
+	} else {
+	  $qc="\"QC-1 >OOR\"";
+	}
+      } elsif ($id=~/-2/) {
+	if ($mean >= $highrange[0] && $mean <= $highrange[1]) {
+	  $qc="\"QC-2 OK\"";
+	} elsif ($mean < $lowrange[0]) {
+	  $qc="\"QC-2 <OOR\"";
+	} else {
+	  $qc="\"QC-2 >OOR\"";
+	}
+      }
+    } else {
+      $qc="\"\"";
+    }
+# START WRITING TO THE FILE
+      if ($mean=~/OOR/ || $sd eq "\"\"") {
+      print "$mean\t\"\"\t";
+      if ($makexls) {
+	  $wksht->write($row,$col++,$mean,$wksht->set_column($col-1,0,15));
+	  $wksht->write($row,$col++,"");
+      }
+    } else {
+      printf "%02.1f\t%02.1f\t",$mean,$sd;
+      if ($makexls) {
+	  $wksht->write($row,$col++,$mean,$wksht->set_column($col-1,0,15));
+      }
+      if ($makexls) { $wksht->write($row,$col++,$sd,$oneplace) };
+    }
+    if ($mean == 0 && $mean!~/OOR/) {
+      printf "0\t";
+      if ($makexls) { $wksht->write($row,$col++,"0") };
+    } elsif ($sd eq "\"\"") {
+      print "\"\"\t";
+      if ($makexls) { $wksht->write($row,$col++,"") };
+    } else {
+      $cv = ($sd/$mean)*100;
+      printf "%02.1f\t",$cv;
+      if ($makexls) { $wksht->write($row,$col++,$cv,$oneplace) };
+    }
+    foreach $count (@{$beadcount{$analyte}}) {
+      if ($count < 100) {
+	$below100++;
+      }
+    }
+      print "$qc\t";
+      if ($makexls) { $qc=~s/\"//g; $wksht->write($row,$col++,$qc) };
+      if ($dilfactor > 1) {
+	if ($row >= 10) { # correct for sample dilution (if any)
+	  print $correctedmean;
+	}
+	print "\t";
+      }
+      if ($showcountxl) {
+	  if ($showcountlbl) {
+	      $countlbl = join "/",@{$beadcount{$analyte}};
+	      print "$countlbl\t";
+	      if ($makexls) {
+		  $wksht->write($row,$col++,$countlbl,$literal_format);
+	      }  # use literal format so that "x/y" isn't interpreted
+		 # by Excel as "x-month/y-year" 
+	  } else {
+	      print "$below100\t";
+	      if ($makexls) { $wksht->write($row,$col++,$below100) };
+	  }
+      }
+     if ($blankcol) {
+       print "\"\"\t";
+       if ($makexls) { $wksht->write($row,$col++,"") };
+     }
+    $below100=0;
+    undef @{$beadcount{$analyte}};
+  }
+  print "\n";
+  $col=0;
+  $row++;
+}
+
+close OUT; # close the output file, otherwise the .xls file will be
+	   # incomplete (closing flushes the buffer to disk)
+
+if ($makexls) { $wkbk->close(); } # needed because "my() was not used
+				# to declare the scope of a workbook
+				# variable created using new()."
+
+if ($maketxtxls) { # copy the text file with a .xls extension
+    copy ($txtfile,$txtxlsfile);
+} 
+##############################################################
+
+##############################################################
+#          CREATE THE PLOT (.plt) FILE
+#
+# SET GLOBAL PARAMETERS IN THE HEADER
+open(PLOT,">$plotfile");
+select PLOT;
+print "# this file generated automagically by $thisscript\n";
+print <<ENDOFTEXT;
+unset multiplot
+reset
+set terminal postscript landscape enhanced color font "ArialMT,16"
+set bmargin 8 # the default margin is too wide (at the expense of the graph)
+set style rect fc lt -1 fs solid 0.15 noborder
+set obj 1 rect behind from graph 0, graph 0 to 8.5, graph 1 fc rgb
+    "gray" fillstyle solid 1.0
+set obj 2 rect behind from 8.5, graph 0 to 11.5, graph 1
+set obj 3 rect behind from graph 0, graph 0 to 8.5, graph -.3 fc rgb
+    "gray" fillstyle solid 1.0
+set obj 4 rect behind from 8.5, graph 0 to 11.5, graph -.3
+set label "STANDARDS" at 4, graph -.27 center font "ArialMT,8"
+set label "CONTROLS" at 10, graph -.27 center font "ArialMT,6.5"
+set style fill solid border -1
+set boxwidth 2 absolute
+set xtics border in scale 1,0.5 mirror rotate by 90 font "ArialMT,9"
+set ytics  font "ArialMT,16"
+set nokey
+set logscale y
+set grid xtics
+set grid ytics
+set format y "10^{%L}"
+set offsets 1,1
+ENDOFTEXT
+
+@color = qw /
+    'gray'
+    'forest-green'
+    'orange'
+    'dark-turquoise'
+    'blue'
+    'violet'
+    'red'
+    'light-pink'
+    'salmon'
+    '#ff4500'
+    '#6a5acd'
+    /;
+
+print "set output \"",$psfile,"\"\n";
+
+# PROCESS THE DATA IN A LOOP; EACH PASS GENERATES THE GRAPH FOR A
+# SINGLE ANALYTE
+$i=2;
+for ($i=2; $i<=($#analytes*$numcols)+2; $i+=$numcols) {
+
+    if ($analytes[$count]=~/TNF-R/) {
+	print "set nolabel 3\n";
+	print "set label 3 \"ng/mL\" at graph -0.09, graph 0.5 center
+	font \"ArialMT,12\" rotate\n";
+    } else {
+	print "set label 3 \"pg/mL\" at graph -0.09, graph 0.5 center
+	font \"ArialMT,12\" rotate\n";
+    }
+
+# PLOT CONTROL RANGES (dark blocks)
+
+    @ranges=split / /, $ctlist{$analytes[$count]};
+    $lowrange=$ranges[0];
+    $highrange=$ranges[1];
+    @lowrange=split /-/,$lowrange;
+    @highrange=split /-/,$highrange;
+    
+# clean up the analyte names (use Greek letters, etc.)
+
+    if ($analytes[$count]=~/[A-Z][A-Z]+/ && $analytes[$count]=~/[abg]/) {
+	$analytes[$count]=~s/$&/{\/Symbol $&}/; # use Greek alphabet
+    }
+
+    $icount = ($string =~ tr/X//); # count the number of "I"s
+    my $icount = ($analytes[$count] =~ tr/I//);
+
+# substitute appropriate number
+    $analytes[$count]=~s/sTNFR(I+)/sTNF-R$icount/;
+
+    print "set title \"{/ArialMT=24
+    ",$basename,"}\\n\\n$analytes[$count]\"\n";
+
+# PLOT ERRORBARS: red if CV > 20, black otherwise
+    print "plot '",$txtfile,"' u :$i:(\$",$i+2,">20 ? 1/0 :
+    \$",$i+1,") w errorbars notitle lt 1 ps 0 lw 2 lc rgb
+    'black',\\\n";
+    print "'' u :$i:(\$",$i+2,">20 ? \$",$i+1," : 1/0) w errorbars
+    notitle lt 1 ps 0 lw 2 lc rgb 'red',\\\n";
+
+# PLOT VALUES: full color if there were no wells with low bead counts,
+# lighter color if 1 or more wells had low bead counts
+    print "'' u :$i:(.8):xticlabels(1) w boxes t
+\"",$analytes[$count++],"\" lt 1 lw 1 lc rgb $color[$count],\\\n";
+    if ($showcountplot && !$showcountlbl) { # mark samples with one or
+				# more wells with less than 100 events
+      print "'' u :(\$",$i+4,">0 ? \$",$i," : 1/0):(.8):xticlabels(1)
+            w boxes notitle fs solid .2 lt 1 lw 1 lc rgb
+            $color[$count],\\\n";
+    } elsif ($showcountplot && $showcountlbl) { # overlay raw event
+				# count on samples with bead counts
+				# less than 100 in one or more wells
+      print "'' u :(substr(stringcolumn(",$i+4,"),1,
+            (strstrt(stringcolumn(",$i+4,"),\"/\")))<100 ? \$",$i," : 1/0)
+            :(.8):xticlabels(1) w boxes notitle fs solid .2 lt 1 lw 1
+            lc rgb $color[$count],\\\n";
+      print "'' u :(substr(stringcolumn(",$i+4,"),(strstrt(
+            stringcolumn(",$i+4,"),\"/\"))+1,strlen(stringcolumn(",$i+4,")))<100
+            ? \$",$i," : 1/0):(.8):xticlabels(1) w boxes notitle fs
+            solid .2 lt 1 lw 1 lc rgb $color[$count],\\\n";
+      print "'' u :$i:(substr(stringcolumn(",$i+4,"),1,(strstrt(
+            stringcolumn(",$i+4,"),\"/\")))<100 ? \$",$i+4," : 1/0) w
+            labels font \"Arial,7\" center offset 0,-1 rot by 90
+            notitle,\\\n";
+      print "'' u :$i:(substr(stringcolumn(",$i+4,"),(strstrt(
+            stringcolumn(",$i+4,"),\"/\"))+1,strlen(stringcolumn(",$i+4,")))<100
+            ? \$",$i+4," : 1/0) w labels font \"Arial,7\" center
+            offset 0,-1 rot by 90 notitle,\\\n";
+    }
+    print "'' u :(stringcolumn(",$i,") eq '<OOR' ? 0 : 1/0):(.8):
+          xticlabels(1) w boxes notitle fs pattern 5 lt 1 lw 1 lc
+          'black',\\\n";
+    print "'' u :(stringcolumn(",$i,") eq '>OOR' ? .4 : 1/0):(.8):
+          xticlabels(1) w boxes notitle fs pattern 5 lt 1 lw 1 lc rgb 
+          $color[$count],\\\n";
+    print "'' u :(stringcolumn(",$i,") eq '>OOR' ? 15 : 1/0):
+          (\"EXCEEDED DETECTION THRESHOLD\") w labels font \"Arial,9\"
+          center offset 0,1 rot by 90 notitle\n"; # the number after the
+				                  # question mark
+						  # controls the
+						  # placement of the
+						  # label
+
+    print "#---------------------\n"; # print a separator between
+				      # pages (plots) to make debugging
+				      # easier
+}
+print "set output\n";
+close(PLOT);
+
+# RUN THE .plt FILE THROUGH GNUPLOT AND DISPLAY THE POSTSCRIPT FILE
+if ($makeps) {
+  print "makeps\n";
+    if ($os=~/MSWin32/) { # Win32
+	system ("\"C:\\Documents and Settings\\minman\\My Documents\\
+        Downloads\\gp425win32\\gnuplot\\bin\\pgnuplot.exe\" \"$plotfile\"");
+	system("\"$psfile\"");
+    } elsif ($os=~/darwin/) { # MacOSX
+	system ("/opt/local/bin/gnuplot \"$plotfile\"");
+	system("open \"$psfile\"");
+    }
+}</code></pre>
+
+	<p/>
+	<p>Here's a sample plot produced by this script.  Note in
+	particular the use of red error bars for CVs > 20%.  Also note
+	that if one of the two wells collected had fewer than 100
+	events, this is indicated by plotting the value using a bar of
+	a lighter color along with the actual event counts overlaid at
+	the top of the bar (see samples 1013 and 201).</p>
+
+	 <img src="images/plot.png" alt="plot"> 
+
 	<hr>
 
 	<p>Stay tuned -- more code coming soon!</p>
